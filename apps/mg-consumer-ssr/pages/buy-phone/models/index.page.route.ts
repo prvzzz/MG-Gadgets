@@ -1,0 +1,1 @@
+export default "/buy-phone/models/:brand"

@@ -1,0 +1,14 @@
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/.terraform.lock.hcl
+
+# Plans
+*.tfplan
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/

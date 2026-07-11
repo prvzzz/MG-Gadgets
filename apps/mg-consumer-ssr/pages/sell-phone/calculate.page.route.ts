@@ -1,0 +1,1 @@
+export default "/sell-phone/:brandName/calculate/:alias";

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: consumer-ssr-service
+  namespace: mg-devops
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app: consumer-ssr
+
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 3000
