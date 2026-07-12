@@ -19,12 +19,15 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
+       stage('Checkout') {
             steps {
-                checkout scm
-                sh '''
-                    git checkout ${GIT_BRANCH}
-                '''
+                deleteDir()
+
+                git(
+                    branch: "${GIT_BRANCH}",
+                    credentialsId: "${GIT_CREDENTIALS}",
+                    url: "${GIT_REPO}"
+                )
             }
         }
 
@@ -112,7 +115,6 @@ pipeline {
                     '''
                 }
             }
-
         stage('Commit and Push GitOps Changes') {
             steps {
                 withCredentials([usernamePassword(
@@ -123,11 +125,16 @@ pipeline {
                     sh '''
                         git add infra/k8s/kustomization.yaml
 
-                        git diff --cached --quiet || git commit -m "Update image to ${IMAGE_TAG}"
+                        if git diff --cached --quiet; then
+                            echo "No changes to commit."
+                            exit 0
+                        fi
+
+                        git commit -m "Update image to ${IMAGE_TAG}"
 
                         git remote set-url origin https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/prvzzz/MG-Gadgets.git
 
-                        git push origin ${GIT_BRANCH}
+                        git push origin HEAD:${GIT_BRANCH}
                     '''
                 }
             }
