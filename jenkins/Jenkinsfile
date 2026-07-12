@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "mg-consumer-ssr"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+    }
+
     stages {
 
         stage('Checkout') {
@@ -9,13 +14,29 @@ pipeline {
             }
         }
 
-        stage('Verify') {
+        stage('Verify Workspace') {
             steps {
                 sh '''
                 pwd
                 ls -la
-                tree -L 2
                 '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('apps/consumer-ssr') {
+                    sh '''
+                    docker build \
+                    -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    '''
+                }
+            }
+        }
+
+        stage('List Images') {
+            steps {
+                sh 'docker images'
             }
         }
     }
