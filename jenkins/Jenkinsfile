@@ -103,6 +103,15 @@ pipeline {
             }
         }
 
+        stage('Debug Git Branch') {
+                steps {
+                    sh '''
+                        git status
+                        git branch -a
+                        git rev-parse --abbrev-ref HEAD
+                    '''
+                }
+            }
 
         stage('Commit and Push GitOps Changes') {
             steps {
