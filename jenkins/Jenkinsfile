@@ -17,8 +17,16 @@ pipeline {
         stage('Verify Workspace') {
             steps {
                 sh '''
-                pwd
-                ls -la
+                    echo "Workspace:"
+                    pwd
+
+                    echo ""
+                    echo "Repository:"
+                    ls -la
+
+                    echo ""
+                    echo "Apps:"
+                    ls -la apps
                 '''
             }
         }
@@ -27,17 +35,28 @@ pipeline {
             steps {
                 dir('apps/consumer-ssr') {
                     sh '''
-                    docker build \
-                    -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
                     '''
                 }
             }
         }
 
-        stage('List Images') {
+        stage('Verify Docker Image') {
             steps {
-                sh 'docker images'
+                sh '''
+                    docker images | grep ${IMAGE_NAME}
+                '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Docker image built successfully!"
+        }
+
+        failure {
+            echo "Pipeline failed!"
         }
     }
 }
