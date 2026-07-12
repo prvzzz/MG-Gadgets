@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools {
+        sonarQubeScanner 'sonar-scanner'
+    }
+
     options {
         skipDefaultCheckout(true)
     }
@@ -9,17 +13,19 @@ pipeline {
         GIT_REPO = "https://github.com/prvzzz/MG-Gadgets.git"
         GIT_BRANCH = "main"
         GIT_CREDENTIALS = "github-pat"
+
         AWS_REGION = "us-east-1"
+        AWS_ACCOUNT_ID = "149828426205"
+
         ECR_REPOSITORY = "mg-devops-dev-ecr"
         IMAGE_NAME = "mg-consumer-ssr"
         IMAGE_TAG = "${BUILD_NUMBER}"
         ECR_IMAGE = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
-        AWS_ACCOUNT_ID = "149828426205"
     }
 
     stages {
 
-       stage('Checkout') {
+        stage('Checkout') {
             steps {
                 deleteDir()
 
@@ -49,6 +55,30 @@ pipeline {
             }
         }
 
+        stage('SonarQube Scan') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    dir('apps/consumer-ssr') {
+                        sh '''
+                            sonar-scanner \
+                              -Dsonar.projectKey=mg-gadgets \
+                              -Dsonar.projectName=MG-Gadgets \
+                              -Dsonar.sources=. \
+                              -Dsonar.sourceEncoding=UTF-8
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
         stage('Verify Workspace') {
             steps {
                 sh '''
@@ -64,7 +94,7 @@ pipeline {
                 dir('apps/consumer-ssr') {
                     sh '''
                         docker build \
-                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                          -t ${IMAGE_NAME}:${IMAGE_TAG} .
                     '''
                 }
             }
@@ -78,20 +108,21 @@ pipeline {
             }
         }
 
-       stage('Trivy Image Scan') {
+        stage('Trivy Image Scan') {
             steps {
                 sh '''
-                     trivy image \
-                --scanners vuln \
-                --severity HIGH,CRITICAL \
-                --format table \
-                --output trivy-report.txt \
-                --exit-code 0 \
-                --no-progress \
-                --skip-version-check \
-                ${IMAGE_NAME}:${IMAGE_TAG}
+                    trivy image \
+                      --scanners vuln \
+                      --severity HIGH,CRITICAL \
+                      --format table \
+                      --output trivy-report.txt \
+                      --exit-code 0 \
+                      --no-progress \
+                      --skip-version-check \
+                      ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
+
             post {
                 always {
                     archiveArtifacts artifacts: 'trivy-report.txt', fingerprint: true
@@ -111,24 +142,23 @@ pipeline {
         stage('Login to Amazon ECR') {
             steps {
                 sh '''
-                     aws ecr get-login-password \
-                     --region ${AWS_REGION} | docker login \
-                     --username AWS \
-                     --password-stdin \
-                  ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                  '''
-             }
+                    aws ecr get-login-password \
+                    --region ${AWS_REGION} | docker login \
+                    --username AWS \
+                    --password-stdin \
+                    ${ECR_IMAGE}
+                '''
+            }
         }
+
         stage('Push Image to Amazon ECR') {
             steps {
                 sh '''
-                docker tag ${IMAGE_NAME}:${IMAGE_TAG} \
-                ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${ECR_IMAGE}:${IMAGE_TAG}
 
-                docker push \
-                ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
+                    docker push ${ECR_IMAGE}:${IMAGE_TAG}
                 '''
-             }
+            }
         }
 
         stage('Update Kustomization') {
@@ -147,11 +177,13 @@ pipeline {
 
         stage('Commit and Push GitOps Changes') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: "${GIT_CREDENTIALS}",
-                    usernameVariable: 'GIT_USERNAME',
-                    passwordVariable: 'GIT_TOKEN'
-                )]) {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${GIT_CREDENTIALS}",
+                        usernameVariable: 'GIT_USERNAME',
+                        passwordVariable: 'GIT_TOKEN'
+                    )
+                ]) {
                     sh '''
                         git add infra/k8s/kustomization.yaml
 
@@ -160,7 +192,7 @@ pipeline {
                             exit 0
                         fi
 
-                        git commit -m "Update image to ${IMAGE_TAG}"
+                        git commit -m "[skip ci] Update image to ${IMAGE_TAG}"
 
                         git remote set-url origin https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/prvzzz/MG-Gadgets.git
 
@@ -170,7 +202,6 @@ pipeline {
             }
         }
     }
-    
 
     post {
         success {
@@ -179,6 +210,10 @@ pipeline {
 
         failure {
             echo 'Pipeline failed.'
+        }
+
+        always {
+            cleanWs()
         }
     }
 }
