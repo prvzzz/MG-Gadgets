@@ -5,3 +5,6 @@
 
   roles:
     - common
+    - docker
+    - java
+    - jenkins
