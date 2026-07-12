@@ -31,6 +31,24 @@ pipeline {
             }
         }
 
+        stage('Skip Jenkins Commit') {
+            steps {
+                script {
+                    def commitMessage = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Latest Commit: ${commitMessage}"
+
+                    if (commitMessage.contains('[skip ci]')) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error('Skipping Jenkins generated commit.')
+                    }
+                }
+            }
+        }
+
         stage('Verify Workspace') {
             steps {
                 sh '''
@@ -127,15 +145,6 @@ pipeline {
             }
         }
 
-        stage('Debug Git Branch') {
-                steps {
-                    sh '''
-                        git status
-                        git branch -a
-                        git rev-parse --abbrev-ref HEAD
-                    '''
-                }
-            }
         stage('Commit and Push GitOps Changes') {
             steps {
                 withCredentials([usernamePassword(
