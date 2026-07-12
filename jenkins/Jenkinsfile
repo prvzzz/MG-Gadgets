@@ -99,6 +99,26 @@ pipeline {
                 }
             }
         }
+
+        stage('Commit and Push GitOps Changes') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${GIT_CREDENTIALS}",
+                    usernameVariable: 'GIT_USERNAME',
+                    passwordVariable: 'GIT_TOKEN'
+                )]) {
+                    sh '''
+                        git add infra/k8s/kustomization.yaml
+
+                        git diff --cached --quiet || git commit -m "Update image to ${IMAGE_TAG}"
+
+                        git remote set-url origin https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/prvzzz/MG-Gadgets.git
+
+                        git push origin ${GIT_BRANCH}
+                    '''
+                }
+            }
+        }
     }
     
 
