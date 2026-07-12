@@ -22,6 +22,9 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+                sh '''
+                    git checkout ${GIT_BRANCH}
+                '''
             }
         }
 
@@ -99,6 +102,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Commit and Push GitOps Changes') {
             steps {
