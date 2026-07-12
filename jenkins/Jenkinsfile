@@ -1,9 +1,16 @@
 pipeline {
     agent any
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     environment {
+        AWS_REGION = "us-east-1"
+        ECR_REPOSITORY = "mg-devops-dev-ecr"
         IMAGE_NAME = "mg-consumer-ssr"
         IMAGE_TAG = "${BUILD_NUMBER}"
+        AWS_ACCOUNT_ID = "149828426205"
     }
 
     stages {
@@ -17,15 +24,8 @@ pipeline {
         stage('Verify Workspace') {
             steps {
                 sh '''
-                    echo "Workspace:"
                     pwd
-
-                    echo ""
-                    echo "Repository:"
                     ls -la
-
-                    echo ""
-                    echo "Apps:"
                     ls -la apps
                 '''
             }
@@ -35,7 +35,8 @@ pipeline {
             steps {
                 dir('apps/consumer-ssr') {
                     sh '''
-                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                        docker build \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
                     '''
                 }
             }
@@ -52,11 +53,11 @@ pipeline {
 
     post {
         success {
-            echo "Docker image built successfully!"
+            echo 'Pipeline completed successfully.'
         }
 
         failure {
-            echo "Pipeline failed!"
+            echo 'Pipeline failed.'
         }
     }
 }
