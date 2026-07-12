@@ -6,6 +6,9 @@ pipeline {
     }
 
     environment {
+        GIT_REPO = "https://github.com/prvzzz/MG-Gadgets.git"
+        GIT_BRANCH = "main"
+        GIT_CREDENTIALS = "github-pat"
         AWS_REGION = "us-east-1"
         ECR_REPOSITORY = "mg-devops-dev-ecr"
         IMAGE_NAME = "mg-consumer-ssr"
@@ -46,6 +49,15 @@ pipeline {
             steps {
                 sh '''
                     docker images | grep ${IMAGE_NAME}
+                '''
+            }
+        }
+
+        stage('Configure Git') {
+            steps {
+                sh '''
+                    git config --global user.name "Jenkins CI"
+                    git config --global user.email "jenkins@mggadgets.com"
                 '''
             }
         }

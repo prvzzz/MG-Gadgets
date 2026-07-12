@@ -34,9 +34,9 @@ spec:
       containers:
         - name: consumer-ssr
 
-          image: 149828426205.dkr.ecr.us-east-1.amazonaws.com/mg-devops-dev-ecr:v1
+          image: 149828426205.dkr.ecr.us-east-1.amazonaws.com/mg-devops-dev-ecr
 
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 3000
