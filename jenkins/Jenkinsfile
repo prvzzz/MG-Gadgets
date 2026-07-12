@@ -13,6 +13,7 @@ pipeline {
         ECR_REPOSITORY = "mg-devops-dev-ecr"
         IMAGE_NAME = "mg-consumer-ssr"
         IMAGE_TAG = "${BUILD_NUMBER}"
+        ECR_IMAGE = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
         AWS_ACCOUNT_ID = "149828426205"
     }
 
@@ -84,7 +85,22 @@ pipeline {
                 '''
              }
         }
+
+        stage('Update Kustomization') {
+            steps {
+                dir('infra/k8s') {
+                    sh '''
+                        sed -i 's/newTag:.*/newTag: "'${IMAGE_TAG}'"/' kustomization.yaml
+
+                        echo "Updated kustomization.yaml"
+
+                        cat kustomization.yaml
+                    '''
+                }
+            }
+        }
     }
+    
 
     post {
         success {
