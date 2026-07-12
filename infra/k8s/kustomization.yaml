@@ -11,4 +11,4 @@ resources:
 
 images:
   - name: 149828426205.dkr.ecr.us-east-1.amazonaws.com/mg-devops-dev-ecr
-    newTag: "23"
+    newTag: "24"
