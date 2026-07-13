@@ -3,20 +3,29 @@ pipeline {
 
     options {
         skipDefaultCheckout(true)
+
+        buildDiscarder(
+            logRotator(
+                numToKeepStr: '10',
+                artifactNumToKeepStr: '10'
+            )
+        )
+
+        timestamps()
     }
 
     environment {
-        GIT_REPO = "https://github.com/prvzzz/MG-Gadgets.git"
-        GIT_BRANCH = "main"
+        GIT_REPO        = "https://github.com/prvzzz/MG-Gadgets.git"
+        GIT_BRANCH      = "main"
         GIT_CREDENTIALS = "github-pat"
 
-        AWS_REGION = "us-east-1"
-        AWS_ACCOUNT_ID = "149828426205"
+        AWS_REGION      = "us-east-1"
+        AWS_ACCOUNT_ID  = "149828426205"
 
-        ECR_REPOSITORY = "mg-devops-dev-ecr"
-        IMAGE_NAME = "mg-consumer-ssr"
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        ECR_IMAGE = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
+        ECR_REPOSITORY  = "mg-devops-dev-ecr"
+        IMAGE_NAME      = "mg-consumer-ssr"
+        IMAGE_TAG       = "${BUILD_NUMBER}"
+        ECR_IMAGE       = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
     }
 
     stages {
@@ -51,33 +60,33 @@ pipeline {
             }
         }
 
-      stage('SonarQube Scan') {
-                steps {
-                    script {
-                        def scannerHome = tool 'sonar-scanner'
+        stage('SonarQube Scan') {
+            steps {
+                script {
+                    def scannerHome = tool 'sonar-scanner'
 
-                        withSonarQubeEnv('sonarqube') {
-                            dir('apps/consumer-ssr') {
-                                sh """
-                                    ${scannerHome}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=consumer-ssr \
-                                    -Dsonar.projectName=Consumer-SSR \
-                                    -Dsonar.sources=. \
-                                    -Dsonar.sourceEncoding=UTF-8
-                                """
-                            }
+                    withSonarQubeEnv('sonarqube') {
+                        dir('apps/consumer-ssr') {
+                            sh """
+                                ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=consumer-ssr \
+                                -Dsonar.projectName=Consumer-SSR \
+                                -Dsonar.sources=. \
+                                -Dsonar.sourceEncoding=UTF-8
+                            """
                         }
                     }
                 }
             }
+        }
 
-            stage('Quality Gate') {
-                    steps {
-                        timeout(time: 5, unit: 'MINUTES') {
-                            waitForQualityGate abortPipeline: true
-                        }
-                    }
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
+            }
+        }
 
         stage('Verify Workspace') {
             steps {
@@ -94,7 +103,7 @@ pipeline {
                 dir('apps/consumer-ssr') {
                     sh '''
                         docker build \
-                          -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
                     '''
                 }
             }
@@ -112,14 +121,14 @@ pipeline {
             steps {
                 sh '''
                     trivy image \
-                      --scanners vuln \
-                      --severity HIGH,CRITICAL \
-                      --format table \
-                      --output trivy-report.txt \
-                      --exit-code 0 \
-                      --no-progress \
-                      --skip-version-check \
-                      ${IMAGE_NAME}:${IMAGE_TAG}
+                    --scanners vuln \
+                    --severity HIGH,CRITICAL \
+                    --format table \
+                    --output trivy-report.txt \
+                    --exit-code 0 \
+                    --no-progress \
+                    --skip-version-check \
+                    ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
 
@@ -157,6 +166,18 @@ pipeline {
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${ECR_IMAGE}:${IMAGE_TAG}
 
                     docker push ${ECR_IMAGE}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Cleanup Local Docker Images') {
+            steps {
+                sh '''
+                    docker rmi ${ECR_IMAGE}:${IMAGE_TAG} || true
+                    docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
+
+                    docker image prune -f
+                    docker builder prune -f
                 '''
             }
         }
